@@ -1,53 +1,57 @@
 import requests
+import re
+import csv
 from bs4 import BeautifulSoup
 import pandas as pd
-import time
 
-# Define base URL for anime list (e.g., MyAnimeList popular anime page)
-base_url = 'https://animemangatoon.com/top-anime-and-k-drama-like-true-beauty/'
 
-# Prepare empty lists to hold the scraped data
-titles = []
-descriptions = []
-genres = []
+url=r"https://animemangatoon.com/top-anime-and-k-drama-like-true-beauty/"
+r=requests.get(url)
 
-# Function to scrape anime from a page
-def scrape_anime(page_url):
-    response = requests.get(page_url)
-    soup = BeautifulSoup(response.text, 'html.parser')
-    
-    # Find all anime containers on the page
-    anime_list = soup.find_all('div', class_='content-inner')
+soup = BeautifulSoup(r.content, 'html.parser')
 
-    for anime in anime_list:
-        # Extract anime title
-        title = anime.find('b').text.strip()
-        titles.append(title)
-        
-        # Extract description (if available)
-        description = anime.find('p', class_ = 'code-block-8').text.strip() if anime.find('p', class_ = 'code-block-8') else 'No description'
-        descriptions.append(description)
-        
-        # Extract genre(s)
-        # genres_list = []
-        # genres_html = anime.find_all('span', class_='genre')
-        # for genre in genres_html:
-        #     genres_list.append(genre.text.strip())
-        # genres.append(', '.join(genres_list))
 
-# Iterate through several pages of anime
-for page in range(1, 6):  # Scraping first 5 pages as an example
-    page_url = f'{base_url}?limit={50 * (page - 1)}'  # Adjust URL for pagination
-    scrape_anime(page_url)
-    time.sleep(1)  # To avoid overloading the server
 
-# Convert to a DataFrame for easier handling
-anime_data = pd.DataFrame({
-    'Title': titles,
-    'Description': descriptions,
-    'Genres': genres
+# Initialize lists for headings and paragraphs
+headings_and_paragraphs = []
+headings = []
+paragraphs1 = []
+
+# Loop through all heading elements
+for element in soup.find_all(['h1', 'h2', 'h3', 'h4', 'h5', 'h6']):
+    heading = element.text
+    paragraphs = []
+
+    # Loop through the siblings, but stop if another heading is found
+    for sibling in element.find_next_siblings():
+        # If the sibling is another heading, stop collecting paragraphs
+        if sibling.name in ['h1', 'h2', 'h3', 'h4', 'h5', 'h6']:
+            break
+        # Otherwise, collect paragraphs
+        if sibling.name == 'p':
+            paragraphs.append(sibling.text)
+
+    # Append the heading and paragraphs as a tuple
+    headings_and_paragraphs.append((heading, paragraphs))
+
+# Prepare lists for DataFrame columns
+for heading, paragraphs in headings_and_paragraphs:
+    headings.append(heading)
+    # Join paragraphs into a single string for each heading
+    paragraphs1.append(" ".join(paragraphs) if paragraphs else None)
+
+# Create a DataFrame
+df = pd.DataFrame({
+    'Heading': headings,
+    'Paragraph': paragraphs1
 })
 
-# Save the data to a CSV file
-anime_data.to_csv('anime_dataset5.csv', index=False)
-print("Anime dataset saved as 'anime_dataset.csv'")
+
+
+# Define the file path where you want to save the CSV file
+file_path = r'C:\Users\Gaurav\OneDrive\Desktop\Task 1\Content-Classifier\data\webtoons_data.csv'
+
+# Save the DataFrame to a CSV file
+df.to_csv(file_path, index=False, encoding='utf-8')
+
+print(f"Data saved to {file_path}")
